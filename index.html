@@ -6,7 +6,7 @@
   <title>Space Dodge — мінігра</title>
   <style>
     html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
-    #gameWrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:linear-gradient(180deg,#020024 0%,#090927 60%);color:#fff}
+    #gameWrap{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:linear-gradient(180deg,#020024 0%,#090927 60%);color:#fff}
     canvas{background:transparent;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.6)}
     .ui{width:100%;max-width:480px;margin-top:14px;display:flex;justify-content:space-between;align-items:center}
     .btn{background:#1b9bf0;border:none;padding:8px 12px;border-radius:8px;color:#fff;cursor:pointer}
@@ -31,15 +31,15 @@
       </div>
     </div>
     <div style="margin-top:8px;max-width:480px;text-align:center" class="muted small">Керування: мишкою або стрілками/тач</div>
-  </div>
 
-  <div id="overlay" style="display:none">
-    <div class="panel">
-      <div id="overlayText" class="big">Space Dodge</div>
-      <div class="muted" style="margin-top:8px">Уникай астероїдів, збирай монети. Чим довше граєш — тим більше заробляєш!</div>
-      <div style="margin-top:12px">
-        <button id="playNow" class="btn">Почати гру</button>
-        <button id="shareBtn" class="btn secondary">Поділитися результатом</button>
+    <div id="overlay">
+      <div class="panel">
+        <div id="overlayText" class="big">Space Dodge</div>
+        <div class="muted" style="margin-top:8px">Уникай астероїдів, збирай монети. Чим довше граєш — тим більше заробляєш!</div>
+        <div style="margin-top:12px">
+          <button id="playNow" class="btn">Почати гру</button>
+          <button id="shareBtn" class="btn secondary">Поділитися результатом</button>
+        </div>
       </div>
     </div>
   </div>
@@ -53,9 +53,9 @@
   const W = canvas.width, H = canvas.height;
 
   let state = 'menu'; // menu, playing, gameover
-  let scoreEl = document.getElementById('score');
-  let overlay = document.getElementById('overlay');
-  let overlayText = document.getElementById('overlayText');
+  const scoreEl = document.getElementById('score');
+  const overlay = document.getElementById('overlay');
+  const overlayText = document.getElementById('overlayText');
 
   // Player
   const player = { x: W/2, y: H - 80, r: 18, speed: 6 };
@@ -106,7 +106,8 @@
   }
 
   function reset(){
-    asteroids=[];coins=[];score=0;spawnTimer=0;coinTimer=0;state='playing';overlay.style.display='none';
+    asteroids=[];coins=[];score=0;spawnTimer=0;coinTimer=0;state='playing';overlay.style.display='none';scoreEl.innerText='0';
+    player.x = W/2; player.y = H-80; lastTime = 0;
   }
 
   function gameOver(){
@@ -114,8 +115,6 @@
     overlayText.innerHTML = `Гра закінчена<br>Рахунок: ${score}`;
     overlay.style.display='flex';
     playBeep(120,0.14);
-    // Here you could call a monetization hook: show interstitial ad or offer premium
-    // showInterstitialAd();
   }
 
   function update(dt){
@@ -141,36 +140,7 @@
     }
 
     // update coins
-    for(let i=coins.length-1;i>=0;i--){
-      const c = coins[i];
-      c.y += c.spd * (60*dt);
-      if(c.y - c.r > H) coins.splice(i,1);
-      else if(dist(c.x,c.y,player.x,player.y) < c.r + player.r - 2){
-        coins.splice(i,1); score += 5; scoreEl.innerText = score; playBeep(880,0.05);
-      }
-    }
-
-    // player movement: keyboard
-    if(keys['ArrowLeft'] || keys['a']) player.x -= player.speed * (60*dt);
-    if(keys['ArrowRight']|| keys['d']) player.x += player.speed * (60*dt);
-    if(keys['ArrowUp']   || keys['w']) player.y -= player.speed * (60*dt);
-    if(keys['ArrowDown'] || keys['s']) player.y += player.speed * (60*dt);
-    // pointer/touch movement smoothing
-    if(pointerX !== null){ player.x += (pointerX - player.x) * 0.14; }
-
-    // bounds
-    player.x = Math.max(player.r, Math.min(W-player.r, player.x));
-    player.y = Math.max(player.r, Math.min(H-player.r, player.y));
-
-    // score grows with time
-    score += Math.floor(0.02 * (60*dt));
-    scoreEl.innerText = score;
-  }
-
-  function draw(){
-    ctx.clearRect(0,0,W,H);
-    // stars
-    for(let i=0;i<60;i++){
+@@ -174,154 +173,124 @@
       ctx.fillStyle = 'rgba(255,255,255,' + (Math.random()*0.5)+')';
       const sx = (i*73)%W; const sy = (i*101)%H;
       ctx.fillRect(sx,sy,1,1);
@@ -196,10 +166,61 @@
       ctx.restore();
     }
 
-    // player ship
+    // player ship (simple rocket)
     ctx.save(); ctx.translate(player.x, player.y);
-    ctx.beginPath(); ctx.moveTo(0,-player.r-4); ctx.lineTo(-player.r, player.r+4); ctx.lineTo(player.r, player.r+4); ctx.closePath();
-    ctx.fillStyle='#1b9bf0'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.stroke();
+    const bodyW = player.r * 1.1;
+    const bodyH = player.r * 2.2;
+    const noseH = player.r * 0.9;
+    // hull
+    ctx.beginPath();
+    ctx.moveTo(0, -bodyH/2 - noseH);
+    ctx.quadraticCurveTo(bodyW/2, -bodyH/2 - noseH*0.4, bodyW/2, -bodyH/2);
+    ctx.lineTo(bodyW/2, bodyH/2 - 4);
+    ctx.quadraticCurveTo(0, bodyH/2 + player.r*0.4, -bodyW/2, bodyH/2 - 4);
+    ctx.lineTo(-bodyW/2, -bodyH/2);
+    ctx.quadraticCurveTo(-bodyW/2, -bodyH/2 - noseH*0.4, 0, -bodyH/2 - noseH);
+    ctx.closePath();
+    const hullGrad = ctx.createLinearGradient(0, -bodyH/2 - noseH, 0, bodyH/2);
+    hullGrad.addColorStop(0, '#6ec1ff');
+    hullGrad.addColorStop(1, '#1b9bf0');
+    ctx.fillStyle = hullGrad;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle='rgba(255,255,255,0.22)';
+    ctx.stroke();
+
+    // fins
+    ctx.fillStyle = '#0f6fb5';
+    ctx.beginPath();
+    ctx.moveTo(-bodyW/2, bodyH/2 - 6);
+    ctx.lineTo(-bodyW, bodyH/2 + 6);
+    ctx.lineTo(-bodyW/2, bodyH/2 + 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(bodyW/2, bodyH/2 - 6);
+    ctx.lineTo(bodyW, bodyH/2 + 6);
+    ctx.lineTo(bodyW/2, bodyH/2 + 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // window
+    ctx.beginPath();
+    ctx.arc(0, -bodyH/4, player.r*0.35, 0, Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,0.92)';
+    ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,0.12)';
+    ctx.stroke();
+
+    // flame
+    ctx.beginPath();
+    ctx.moveTo(0, bodyH/2 + 6);
+    ctx.quadraticCurveTo(player.r*0.25, bodyH/2 + 16, 0, bodyH/2 + 22);
+    ctx.quadraticCurveTo(-player.r*0.25, bodyH/2 + 16, 0, bodyH/2 + 6);
+    ctx.fillStyle='rgba(255,140,0,0.9)';
+    ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.18)';
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -211,117 +232,36 @@
     draw();
     requestAnimationFrame(loop);
   }
-       ctx.beginPath(); ctx.arc(0,0,c.r,0,Math.PI*2); ctx.fillStyle='gold'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.stroke();
-       ctx.restore();
-     }
- 
-     // lasers
-     for(const l of lasers){
-       ctx.save(); ctx.translate(l.x,l.y);
-       ctx.beginPath(); ctx.moveTo(0,-10); ctx.lineTo(0,10);
-       ctx.strokeStyle='rgba(80,200,255,0.9)'; ctx.lineWidth=3; ctx.lineCap='round'; ctx.stroke();
-       ctx.restore();
-     }
- 
-     // asteroids
-     for(const a of asteroids){
-       ctx.save(); ctx.translate(a.x,a.y); ctx.rotate(a.ang);
-       ctx.beginPath(); ctx.moveTo(-a.r*0.6, -a.r*0.6);
-       for(let p=0;p<7;p++){
-         const ang = p/7*Math.PI*2;
-         const rr = a.r * (0.6 + Math.sin(p*3.2 + a.ang)*0.18);
-         ctx.lineTo(Math.cos(ang)*rr, Math.sin(ang)*rr);
-       }
-       ctx.closePath(); ctx.fillStyle='rgba(120,110,100,0.95)'; ctx.fill(); ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1; ctx.stroke();
-       ctx.restore();
-     }
- 
--    // player ship
-+    // player ship (simple rocket)
-     ctx.save(); ctx.translate(player.x, player.y);
--    ctx.beginPath(); ctx.moveTo(0,-player.r-4); ctx.lineTo(-player.r, player.r+4); ctx.lineTo(player.r, player.r+4); ctx.closePath();
--    ctx.fillStyle='#1b9bf0'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.stroke();
-+    const bodyW = player.r * 1.1;
-+    const bodyH = player.r * 2.2;
-+    const noseH = player.r * 0.9;
-+    // hull
-+    ctx.beginPath();
-+    ctx.moveTo(0, -bodyH/2 - noseH);
-+    ctx.quadraticCurveTo(bodyW/2, -bodyH/2 - noseH*0.4, bodyW/2, -bodyH/2);
-+    ctx.lineTo(bodyW/2, bodyH/2 - 4);
-+    ctx.quadraticCurveTo(0, bodyH/2 + player.r*0.4, -bodyW/2, bodyH/2 - 4);
-+    ctx.lineTo(-bodyW/2, -bodyH/2);
-+    ctx.quadraticCurveTo(-bodyW/2, -bodyH/2 - noseH*0.4, 0, -bodyH/2 - noseH);
-+    ctx.closePath();
-+    const hullGrad = ctx.createLinearGradient(0, -bodyH/2 - noseH, 0, bodyH/2);
-+    hullGrad.addColorStop(0, '#6ec1ff');
-+    hullGrad.addColorStop(1, '#1b9bf0');
-+    ctx.fillStyle = hullGrad;
-+    ctx.fill();
-+    ctx.lineWidth = 2;
-+    ctx.strokeStyle='rgba(255,255,255,0.22)';
-+    ctx.stroke();
-+
-+    // fins
-+    ctx.fillStyle = '#0f6fb5';
-+    ctx.beginPath();
-+    ctx.moveTo(-bodyW/2, bodyH/2 - 6);
-+    ctx.lineTo(-bodyW, bodyH/2 + 6);
-+    ctx.lineTo(-bodyW/2, bodyH/2 + 2);
-+    ctx.closePath();
-+    ctx.fill();
-+    ctx.beginPath();
-+    ctx.moveTo(bodyW/2, bodyH/2 - 6);
-+    ctx.lineTo(bodyW, bodyH/2 + 6);
-+    ctx.lineTo(bodyW/2, bodyH/2 + 2);
-+    ctx.closePath();
-+    ctx.fill();
-+
-+    // window
-+    ctx.beginPath();
-+    ctx.arc(0, -bodyH/4, player.r*0.35, 0, Math.PI*2);
-+    ctx.fillStyle='rgba(255,255,255,0.92)';
-+    ctx.fill();
-+    ctx.strokeStyle='rgba(0,0,0,0.12)';
-+    ctx.stroke();
-+
-+    // flame
-+    ctx.beginPath();
-+    ctx.moveTo(0, bodyH/2 + 6);
-+    ctx.quadraticCurveTo(player.r*0.25, bodyH/2 + 16, 0, bodyH/2 + 22);
-+    ctx.quadraticCurveTo(-player.r*0.25, bodyH/2 + 16, 0, bodyH/2 + 6);
-+    ctx.fillStyle='rgba(255,140,0,0.9)';
-+    ctx.fill();
-+    ctx.strokeStyle='rgba(255,255,255,0.18)';
-+    ctx.stroke();
-     ctx.restore();
-   }
- 
-   function loop(ts){
-     if(!lastTime) lastTime = ts;
-     const dt = Math.min(0.05, (ts - lastTime)/1000);
-     lastTime = ts;
-     update(dt);
-     draw();
-     requestAnimationFrame(loop);
-   }
- 
-   // input handlers
-   window.addEventListener('keydown', e=>{keys[e.key]=true; if(state!=='playing' && e.key==='Enter'){ reset(); }});
-   window.addEventListener('keyup', e=>{keys[e.key]=false;});
-   canvas.addEventListener('mousemove', e=>{const r=canvas.getBoundingClientRect();pointerX = (e.clientX - r.left) / (r.width) * W;});
-   canvas.addEventListener('mousedown', ()=>{ pointerFire = true; if(state!=='playing') reset(); });
-   window.addEventListener('mouseup', ()=>{ pointerFire = false; });
-   canvas.addEventListener('touchmove', e=>{e.preventDefault();const t=e.touches[0];const r=canvas.getBoundingClientRect();pointerX=(t.clientX - r.left)/r.width*W;}, {passive:false});
-   canvas.addEventListener('touchstart', e=>{e.preventDefault(); pointerFire = true; if(state!=='playing') reset();}, {passive:false});
-   window.addEventListener('touchend', ()=>{ pointerFire = false; }, {passive:false});
- 
-   // UI buttons
-   document.getElementById('startBtn').addEventListener('click', ()=>{ reset(); });
-   document.getElementById('playNow').addEventListener('click', ()=>{ reset(); });
 
-  }
+  // input handlers
+  window.addEventListener('keydown', e=>{keys[e.key]=true; if(state!=='playing' && e.key==='Enter'){ reset(); }});
+  window.addEventListener('keyup', e=>{keys[e.key]=false;});
+  canvas.addEventListener('mousemove', e=>{const r=canvas.getBoundingClientRect();pointerX = (e.clientX - r.left) / (r.width) * W;});
+  canvas.addEventListener('mousedown', ()=>{ if(state!=='playing') reset(); });
+  window.addEventListener('mouseup', ()=>{});
+  canvas.addEventListener('touchmove', e=>{e.preventDefault();const t=e.touches[0];const r=canvas.getBoundingClientRect();pointerX=(t.clientX - r.left)/r.width*W;}, {passive:false});
+  canvas.addEventListener('touchstart', e=>{e.preventDefault(); if(state!=='playing') reset();}, {passive:false});
+  window.addEventListener('touchend', ()=>{}, {passive:false});
 
+  // UI buttons
+  document.getElementById('startBtn').addEventListener('click', ()=>{ reset(); });
+  document.getElementById('playNow').addEventListener('click', ()=>{ reset(); });
+  document.getElementById('muteBtn').addEventListener('click', (e)=>{
+    audioEnabled = !audioEnabled;
+    e.target.textContent = `Музика: ${audioEnabled ? 'Вкл' : 'Викл'}`;
+  });
+  document.getElementById('shareBtn').addEventListener('click', async ()=>{
+    const text = `Мій результат у Space Dodge: ${score} очок!`;
+    if(navigator.share){
+      try{ await navigator.share({title:'Space Dodge', text}); }catch(e){}
+    } else {
+      alert(text);
+    }
+  });
+
+  // show overlay on load
+  overlay.style.display = 'flex';
+  requestAnimationFrame(loop);
   </script>
 </body>
 </html>
