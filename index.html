@@ -211,35 +211,115 @@
     draw();
     requestAnimationFrame(loop);
   }
+       ctx.beginPath(); ctx.arc(0,0,c.r,0,Math.PI*2); ctx.fillStyle='gold'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.stroke();
+       ctx.restore();
+     }
+ 
+     // lasers
+     for(const l of lasers){
+       ctx.save(); ctx.translate(l.x,l.y);
+       ctx.beginPath(); ctx.moveTo(0,-10); ctx.lineTo(0,10);
+       ctx.strokeStyle='rgba(80,200,255,0.9)'; ctx.lineWidth=3; ctx.lineCap='round'; ctx.stroke();
+       ctx.restore();
+     }
+ 
+     // asteroids
+     for(const a of asteroids){
+       ctx.save(); ctx.translate(a.x,a.y); ctx.rotate(a.ang);
+       ctx.beginPath(); ctx.moveTo(-a.r*0.6, -a.r*0.6);
+       for(let p=0;p<7;p++){
+         const ang = p/7*Math.PI*2;
+         const rr = a.r * (0.6 + Math.sin(p*3.2 + a.ang)*0.18);
+         ctx.lineTo(Math.cos(ang)*rr, Math.sin(ang)*rr);
+       }
+       ctx.closePath(); ctx.fillStyle='rgba(120,110,100,0.95)'; ctx.fill(); ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1; ctx.stroke();
+       ctx.restore();
+     }
+ 
+-    // player ship
++    // player ship (simple rocket)
+     ctx.save(); ctx.translate(player.x, player.y);
+-    ctx.beginPath(); ctx.moveTo(0,-player.r-4); ctx.lineTo(-player.r, player.r+4); ctx.lineTo(player.r, player.r+4); ctx.closePath();
+-    ctx.fillStyle='#1b9bf0'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.stroke();
++    const bodyW = player.r * 1.1;
++    const bodyH = player.r * 2.2;
++    const noseH = player.r * 0.9;
++    // hull
++    ctx.beginPath();
++    ctx.moveTo(0, -bodyH/2 - noseH);
++    ctx.quadraticCurveTo(bodyW/2, -bodyH/2 - noseH*0.4, bodyW/2, -bodyH/2);
++    ctx.lineTo(bodyW/2, bodyH/2 - 4);
++    ctx.quadraticCurveTo(0, bodyH/2 + player.r*0.4, -bodyW/2, bodyH/2 - 4);
++    ctx.lineTo(-bodyW/2, -bodyH/2);
++    ctx.quadraticCurveTo(-bodyW/2, -bodyH/2 - noseH*0.4, 0, -bodyH/2 - noseH);
++    ctx.closePath();
++    const hullGrad = ctx.createLinearGradient(0, -bodyH/2 - noseH, 0, bodyH/2);
++    hullGrad.addColorStop(0, '#6ec1ff');
++    hullGrad.addColorStop(1, '#1b9bf0');
++    ctx.fillStyle = hullGrad;
++    ctx.fill();
++    ctx.lineWidth = 2;
++    ctx.strokeStyle='rgba(255,255,255,0.22)';
++    ctx.stroke();
++
++    // fins
++    ctx.fillStyle = '#0f6fb5';
++    ctx.beginPath();
++    ctx.moveTo(-bodyW/2, bodyH/2 - 6);
++    ctx.lineTo(-bodyW, bodyH/2 + 6);
++    ctx.lineTo(-bodyW/2, bodyH/2 + 2);
++    ctx.closePath();
++    ctx.fill();
++    ctx.beginPath();
++    ctx.moveTo(bodyW/2, bodyH/2 - 6);
++    ctx.lineTo(bodyW, bodyH/2 + 6);
++    ctx.lineTo(bodyW/2, bodyH/2 + 2);
++    ctx.closePath();
++    ctx.fill();
++
++    // window
++    ctx.beginPath();
++    ctx.arc(0, -bodyH/4, player.r*0.35, 0, Math.PI*2);
++    ctx.fillStyle='rgba(255,255,255,0.92)';
++    ctx.fill();
++    ctx.strokeStyle='rgba(0,0,0,0.12)';
++    ctx.stroke();
++
++    // flame
++    ctx.beginPath();
++    ctx.moveTo(0, bodyH/2 + 6);
++    ctx.quadraticCurveTo(player.r*0.25, bodyH/2 + 16, 0, bodyH/2 + 22);
++    ctx.quadraticCurveTo(-player.r*0.25, bodyH/2 + 16, 0, bodyH/2 + 6);
++    ctx.fillStyle='rgba(255,140,0,0.9)';
++    ctx.fill();
++    ctx.strokeStyle='rgba(255,255,255,0.18)';
++    ctx.stroke();
+     ctx.restore();
+   }
+ 
+   function loop(ts){
+     if(!lastTime) lastTime = ts;
+     const dt = Math.min(0.05, (ts - lastTime)/1000);
+     lastTime = ts;
+     update(dt);
+     draw();
+     requestAnimationFrame(loop);
+   }
+ 
+   // input handlers
+   window.addEventListener('keydown', e=>{keys[e.key]=true; if(state!=='playing' && e.key==='Enter'){ reset(); }});
+   window.addEventListener('keyup', e=>{keys[e.key]=false;});
+   canvas.addEventListener('mousemove', e=>{const r=canvas.getBoundingClientRect();pointerX = (e.clientX - r.left) / (r.width) * W;});
+   canvas.addEventListener('mousedown', ()=>{ pointerFire = true; if(state!=='playing') reset(); });
+   window.addEventListener('mouseup', ()=>{ pointerFire = false; });
+   canvas.addEventListener('touchmove', e=>{e.preventDefault();const t=e.touches[0];const r=canvas.getBoundingClientRect();pointerX=(t.clientX - r.left)/r.width*W;}, {passive:false});
+   canvas.addEventListener('touchstart', e=>{e.preventDefault(); pointerFire = true; if(state!=='playing') reset();}, {passive:false});
+   window.addEventListener('touchend', ()=>{ pointerFire = false; }, {passive:false});
+ 
+   // UI buttons
+   document.getElementById('startBtn').addEventListener('click', ()=>{ reset(); });
+   document.getElementById('playNow').addEventListener('click', ()=>{ reset(); });
 
-  // input handlers
-  window.addEventListener('keydown', e=>{keys[e.key]=true; if(state!=='playing' && e.key==='Enter'){ reset(); }});
-  window.addEventListener('keyup', e=>{keys[e.key]=false;});
-  canvas.addEventListener('mousemove', e=>{const r=canvas.getBoundingClientRect();pointerX = (e.clientX - r.left) / (r.width) * W;});
-  canvas.addEventListener('touchmove', e=>{e.preventDefault();const t=e.touches[0];const r=canvas.getBoundingClientRect();pointerX=(t.clientX - r.left)/r.width*W;}, {passive:false});
-  canvas.addEventListener('touchstart', e=>{e.preventDefault(); if(state!=='playing') reset();}, {passive:false});
-
-  // UI buttons
-  document.getElementById('startBtn').addEventListener('click', ()=>{ reset(); });
-  document.getElementById('playNow').addEventListener('click', ()=>{ reset(); });
-  document.getElementById('shareBtn').addEventListener('click', ()=>{ const text = `Мій рахунок у Space Dodge: ${score}! Спробуй перевершити!`; if(navigator.share){navigator.share({title:'Space Dodge',text,url:location.href}).catch(()=>{});} else {prompt('Скопіюй і поділись:', text + ' ' + location.href);} });
-  document.getElementById('muteBtn').addEventListener('click', e=>{audioEnabled = !audioEnabled; e.target.innerText = 'Музика: ' + (audioEnabled? 'Вкл':'Викл');});
-
-  // Start loop
-  overlay.style.display='flex';
-  requestAnimationFrame(loop);
-
-  // --- Monetization hooks & placeholders ---
-  // 1) Banner ad placeholder: you can add an element <div id="banner"> and insert ad network script there.
-  // 2) Interstitial: call showInterstitialAd() inside gameOver() to display an ad after player dies.
-  // 3) In-app purchases: integrate Stripe Checkout / Paddle on server-side. Example placeholder:
-  //    function buyPremium(){ window.open('/buy?product=premium','_blank'); }
-  // 4) Tracking: integrate Google Analytics / Plausible to measure DAU/Retention.
-
-  // Example stub for showing interstitial (replace with real network SDK calls)
-  function showInterstitialAd(){
-    // if using AdMob/Cordova, call the SDK. For web, consider Playwire or GameDistribution.
-    console.log('Show interstitial ad (placeholder)');
   }
 
   </script>
